@@ -1,5 +1,9 @@
 # macOS system files
 .DS_Store
+envs
+experiments
+experiment_configs
+inputs
 
 # Virtual environments
 .venv/
