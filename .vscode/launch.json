@@ -1,0 +1,70 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+
+        {
+            "name": "lm_eval: model on task",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/lm_eval",
+            "args": [
+                "--model", "hf",
+                "--model_args",
+                // "pretrained=EleutherAI/gpt-j-6B",
+                // "pretrained=Qwen/Qwen-72B,trust_remote_code=True",
+                // "pretrained=deepseek-ai/deepseek-llm-67b-base",
+                // "pretrained=chargoddard/Yi-34B-Llama,trust_remote_code=True",
+                // "pretrained=cloudyu/Mixtral_7Bx6_MoE_35B,trust_remote_code=True",
+                // "pretrained=macadeliccc/Orca-SOLAR-4x10.7b,trust_remote_code=True",
+                // "pretrained=01-ai/Yi-34B-200K,trust_remote_code=True",
+                // "pretrained=BAAI/Aquila2-34B,trust_remote_code=True",
+                // "pretrained=codellama/CodeLlama-34b-hf,trust_remote_code=True",
+                // "pretrained=iiuae/falcon-40b,trust_remote_code=True",
+                // "pretrained=tiiuae/falcon-40b,trust_remote_code=True",
+                // "pretrained=sumo43/Yi-32b-x2-v2.0,trust_remote_code=True"
+                // "pretrained=huggingface/llama-30b,trust_remote_code=True",
+                // "pretrained=mosaicml/mpt-30b,trust_remote_code=True",
+                // "pretrained=cognitivecomputations/yayi2-30b-llama,trust_remote_code=True",
+                // "pretrained=facebook/opt-30b,trust_remote_code=True",
+                // "model=Qwen/Qwen3-32B,tokenizer=Qwen/Qwen3-32B,max_length=8192,max_gen_toks=2048,trust_remote_code=True",
+                // "pretrained=Qwen/Qwen3-32B,max_length=8192,trust_remote_code=True",
+                // "pretrained=Qwen/Qwen3-4B,max_length=8192,trust_remote_code=True",
+                "pretrained=meta-llama/Llama-2-13b-hf,max_length=8192,trust_remote_code=True",
+                "--tasks",
+                // "hellaswag",
+                // "mmlu",
+                // "mmlu_abstract_algebra_generative",
+                // "mmlu_abstract_algebra",
+                // "arc_challenge",
+                "anatomy",
+                "--device", "cuda:0",
+                "--num_fewshot", "5",
+                "--batch_size", "8",
+                "--log_samples",
+                "--output_path", "output/debug.jsonl",
+                // "--apply_chat_template",
+                "--gen_kwargs",
+                // "max_gen_toks=2048",
+                // "max_gen_toks=2047"
+                "max_gen_toks=128,output_scores=True,return_dict_in_generate=True"
+                // until=['\\n\\n']
+                // "--filter_list", "default"
+
+            ],
+            "console": "integratedTerminal",
+            // "justMyCode": false,
+            "justMyCode": true,
+        },
+
+        {
+            "name": "Python Debugger: Current File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal"
+        }
+    ]
+}

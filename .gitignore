@@ -4,6 +4,7 @@ envs
 experiments
 experiment_configs
 inputs
+tmp
 
 # Virtual environments
 .venv/
@@ -21,7 +22,7 @@ build/
 dist/
 
 # IDE & editor settings
-.vscode/
+# .vscode/
 .idea/
 
 # Jupyter
