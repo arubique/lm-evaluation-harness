@@ -9,15 +9,48 @@ from typing import Union
 
 
 def try_parse_json(value: str) -> Union[str, dict, None]:
+    """
+    Parse a CLI argument that may be either:
+      - JSON (e.g. '{"temperature":0.7,"until":["hello"]}')
+      - a plain string / comma-delimited string (e.g. 'temperature=0,top_p=0.1')
+
+    We only attempt JSON parsing if the string *looks* like JSON. This avoids
+    raising (and then catching) JSONDecodeError for values such as
+    'max_gen_toks=128,output_scores=True,return_dict_in_generate=True',
+    which are intended to be passed through as raw strings.
+    """
+
     if value is None:
         return None
+
+    # Normalize to string and strip whitespace
+    value = str(value)
+    stripped = value.strip()
+
+    if stripped == "":
+        # Treat empty string as empty (matches previous behavior of returning "")
+        return ""
+
+    # Heuristic: only attempt JSON parsing if the value looks like JSON or a
+    # JSON-parseable primitive. Otherwise, treat it as a plain string.
+    first_char = stripped[0]
+    looks_like_json = first_char in "{[\"'"
+    looks_like_number = first_char.isdigit() or first_char in "+-."
+    looks_like_literal = stripped.lower() in {"true", "false", "null"}
+
+    if not (looks_like_json or looks_like_number or looks_like_literal):
+        # e.g. 'max_gen_toks=128,output_scores=True' → return as-is
+        return value
+
     try:
-        return json.loads(value)
+        return json.loads(stripped)
     except json.JSONDecodeError:
-        if "{" in value:
+        if "{" in stripped:
+            # The user *intended* JSON but it is malformed.
             raise argparse.ArgumentTypeError(
                 f"Invalid JSON: {value}. Hint: Use double quotes for JSON strings."
             )
+        # Not valid JSON; fall back to returning the original string.
         return value
 
 
