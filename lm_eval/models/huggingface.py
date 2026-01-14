@@ -1417,6 +1417,7 @@ class HFLM(TemplateLM):
         )
         chunks = re_ords.get_batched(n=batch_size, batch_fn=batch_fn)
         eos = self.tok_decode(self.eot_token_id, skip_special_tokens=False)
+        all_logits = []  # Collect logits for all chunks
         for chunk in chunks:
             contexts, all_gen_kwargs = zip(*chunk)
             # we assume all gen kwargs in the batch are the same
@@ -1459,6 +1460,10 @@ class HFLM(TemplateLM):
             if "max_length" not in kwargs:
                 kwargs["max_length"] = context_enc.shape[1] + max_gen_toks
 
+            # Check if we need to return logits
+            return_dict = kwargs.get("return_dict_in_generate", False)
+            output_scores = kwargs.get("output_scores", False)
+
             # perform batched generation
             cont = self._model_generate(
                 context=context_enc,
@@ -1467,8 +1472,18 @@ class HFLM(TemplateLM):
                 **kwargs,
             )
 
-            cont_toks_list = cont.tolist()
-            for cont_toks, context in zip(cont_toks_list, contexts):
+            # Handle case when return_dict_in_generate=True (returns GenerateDecoderOnlyOutput)
+            if return_dict and output_scores and hasattr(cont, 'sequences'):
+                cont_toks_list = cont.sequences.tolist()
+                scores_list = cont.scores  # List of tensors, one per generated token
+            else:
+                cont_toks_list = cont.tolist()
+                scores_list = None
+
+            # Collect logits for this chunk
+            chunk_logits = []
+
+            for idx, (cont_toks, context) in enumerate(zip(cont_toks_list, contexts)):
                 # discard context + left-padding toks if using causal decoder-only LM
                 if self.backend == "causal":
                     cont_toks = cont_toks[context_enc.shape[1] :]
@@ -1499,10 +1514,31 @@ class HFLM(TemplateLM):
                 )
                 res.append(s)
 
+                # Store logits if available
+                if scores_list is not None:
+                    # Extract logits for this specific sample in the batch
+                    # scores_list is a tuple of tensors, each of shape [batch_size, vocab_size]
+                    # We need to get the logits for this specific batch item
+                    sample_logits = []
+                    for score_tensor in scores_list:
+                        # score_tensor shape: [batch_size, vocab_size]
+                        sample_logits.append(score_tensor[idx].cpu().tolist())
+                    chunk_logits.append(sample_logits)
+                else:
+                    chunk_logits.append(None)
+
                 self.cache_hook.add_partial("generate_until", (context, gen_kwargs), s)
                 pbar.update(1)
+            # Add chunk logits to all_logits
+            all_logits.extend(chunk_logits)
         # reorder this group of results back to original unsorted form
         res = re_ords.get_original(res)
+
+        # Reorder logits and assign to requests
+        if all_logits:
+            all_logits_reordered = re_ords.get_original(all_logits)
+            for request, logits in zip(requests, all_logits_reordered):
+                request.logits.append(logits)
 
         pbar.close()
 

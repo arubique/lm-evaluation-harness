@@ -290,6 +290,14 @@ def setup_parser() -> argparse.ArgumentParser:
         default=None,
         help="""JSON string metadata to pass to task configs, for example '{"max_seq_lengths":[4096,8192]}'. Will be merged with model_args. Can also be set in task config.""",
     )
+    parser.add_argument(
+        "--use_full_prompt",
+        action="store_true",
+        help=(
+            "If set, tasks that support it will evaluate using a 'full_prompt' field "
+            "from the underlying dataset rather than the default shorter query."
+        ),
+    )
     return parser
 
 
@@ -344,6 +352,12 @@ def cli_evaluate(args: Union[argparse.Namespace, None] = None) -> None:
             "When `fewshot_as_multiturn` is selected, `apply_chat_template` must be set (either to `True` or to the chosen template name)."
         )
 
+    if args.use_full_prompt and (args.num_fewshot or 0) != 0:
+        raise ValueError(
+            "When using --use_full_prompt, --num_fewshot must be set to 0 "
+            "(full prompts already contain their own few-shot context)."
+        )
+
     if args.include_path is not None:
         eval_logger.info(f"Including path: {args.include_path}")
     metadata = (
@@ -357,6 +371,12 @@ def cli_evaluate(args: Union[argparse.Namespace, None] = None) -> None:
         if isinstance(args.metadata, dict)
         else simple_parse_args_string(args.metadata)
     )
+
+    # Propagate CLI switches that should influence task configs via metadata.
+    # This lets specific tasks (e.g., JSON-local tasks) adjust behavior such as
+    # using a 'full_prompt' field instead of a shorter 'query' field when requested.
+    if getattr(args, "use_full_prompt", False):
+        metadata = (metadata or {}) | {"use_full_prompt": True}
 
     task_manager = TaskManager(include_path=args.include_path, metadata=metadata)
 

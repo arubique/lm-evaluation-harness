@@ -655,6 +655,9 @@ def evaluate(
                         "prompt_hash": hash_string(requests[0].arguments[0]),
                         "target_hash": hash_string(str(target)),
                     }
+                    # Include logits if available
+                    if hasattr(requests[0], 'logits') and requests[0].logits:
+                        example["logits"] = [req.logits for req in requests]
                     example.update(metrics)
                     task_output.logged_samples.append(example)
                 for metric, value in metrics.items():
