@@ -711,8 +711,11 @@ class Task(abc.ABC):
             eval_logger.info(
                 f"{self.config.task}: Evaluating on {len(samples)} examples"
             )
+            # Convert to set for O(1) lookup, but preserve order of samples list
+            # samples_set = set(samples)
+            # Iterate in the order specified by samples, not eval_docs order
             doc_iterator = utils.create_iterator(
-                enumerate(x for i, x in enumerate(self.eval_docs) if i in samples),
+                enumerate(self.eval_docs[i] for i in samples if i < n),
                 rank=int(rank),
                 limit=None,  # limit does not matter here since we are selecting samples directly
                 world_size=int(world_size),

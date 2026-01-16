@@ -75,12 +75,19 @@ class ContextSampler:
                 )
             self.docs = self.docs.select(fewshot_indices)
 
+
     def get_context(self, doc: dict, num_fewshot: int, gen_prefix: str = None):
         # draw an extra fewshot sample if using same split as evaluating on
         prefix = gen_prefix + " " if gen_prefix else ""
+        # When fewshot_split is None, fewshot_docs() falls back to test_docs() (same as eval_docs)
+        # So we need to check both explicit config match AND the None case
+        use_same_split = (
+            self.config.fewshot_split == self.config.test_split
+            or self.config.fewshot_split is None
+        )
         n_samples = (
             num_fewshot + 1
-            if self.config.fewshot_split == self.config.test_split
+            if use_same_split
             else num_fewshot
         )
 
@@ -89,7 +96,19 @@ class ContextSampler:
 
         # get rid of the doc that's the one we're evaluating, if it's in the fewshot
         # TODO: should we just stop people from using fewshot from same split as evaluating?
-        selected_docs = [x for x in fewshotex if x != doc][:num_fewshot]
+        # When using same split, doc objects from filtered iterator may differ from fewshot_docs objects
+        # So we do a lightweight comparison: try dict field comparison first (fast), then fall back to object identity
+        def doc_equals_fast(x, doc):
+            if x is doc or x == doc:
+                return True
+            # Fast path: if both are dicts, compare by "query" field if it exists (common in many tasks)
+            if isinstance(x, dict) and isinstance(doc, dict):
+                if "query" in x and "query" in doc:
+                    if x["query"] == doc["query"]:
+                        return True
+            return False
+
+        selected_docs = [x for x in fewshotex if not doc_equals_fast(x, doc)][:num_fewshot]
 
         labeled_examples = ""
         for doc in selected_docs:
@@ -132,9 +151,14 @@ class ContextSampler:
         prefix = gen_prefix + " " if gen_prefix else ""
         chat_history = []
         # draw an extra fewshot sample if using same split as evaluating on
+        # When fewshot_split is None, fewshot_docs() falls back to test_docs() (same as eval_docs)
+        use_same_split = (
+            self.config.fewshot_split == self.config.test_split
+            or self.config.fewshot_split is None
+        )
         n_samples = (
             num_fewshot + 1
-            if self.config.fewshot_split == self.config.test_split
+            if use_same_split
             else num_fewshot
         )
         # draw `n_samples` docs from fewshot_docs
@@ -142,7 +166,19 @@ class ContextSampler:
 
         # get rid of the doc that's the one we're evaluating, if it's in the fewshot
         # TODO: should we just stop people from using fewshot from same split as evaluating?
-        selected_docs = [x for x in fewshotex if x != doc][:num_fewshot]
+        # When using same split, doc objects from filtered iterator may differ from fewshot_docs objects
+        # So we do a lightweight comparison: try dict field comparison first (fast), then fall back to object identity
+        def doc_equals_fast(x, doc):
+            if x is doc or x == doc:
+                return True
+            # Fast path: if both are dicts, compare by "query" field if it exists (common in many tasks)
+            if isinstance(x, dict) and isinstance(doc, dict):
+                if "query" in x and "query" in doc:
+                    if x["query"] == doc["query"]:
+                        return True
+            return False
+
+        selected_docs = [x for x in fewshotex if not doc_equals_fast(x, doc)][:num_fewshot]
 
         if fewshot_as_multiturn:
             for doc in selected_docs:
